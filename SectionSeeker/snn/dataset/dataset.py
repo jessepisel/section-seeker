@@ -12,15 +12,22 @@ import torch
 from PIL import Image
 import cv2
 
-from torchvision.datasets.utils import _flip_byte_order, check_integrity, download_and_extract_archive, extract_archive, verify_str_arg
+from torchvision.datasets.utils import (
+    _flip_byte_order,
+    check_integrity,
+    download_and_extract_archive,
+    extract_archive,
+    verify_str_arg,
+)
 from torchvision.datasets import VisionDataset
 import glob
+
 
 class SeismicDataset(VisionDataset):
     """Seimic objects dataset for label-efficient learning
 
     Args:
-        root (string): Root directory of dataset 
+        root (string): Root directory of dataset
         train (bool, optional): If True, creates dataset ./data/train/ directory, else ./data/test/
         transform (callable, optional): A function/transform that  takes in an PIL image
             and returns a transformed version. E.g, ``transforms.RandomCrop``
@@ -42,7 +49,7 @@ class SeismicDataset(VisionDataset):
         "Converging_Amplitudes",
         "Fault",
         "Salt",
-        "Transparent_Planar"
+        "Transparent_Planar",
     ]
 
     @property
@@ -74,20 +81,20 @@ class SeismicDataset(VisionDataset):
         build: bool = False,
         greyscale: bool = True,
         compatibility_mode: bool = False,
-        normalize: bool = True
+        normalize: bool = True,
     ) -> None:
-        
+
         super().__init__(root, transform=transform, target_transform=target_transform)
         self.train = train  # training set or test set
         self.greyscale = greyscale
-        self.colormode = 'L' if greyscale else 'RGB'
+        self.colormode = "L" if greyscale else "RGB"
         self.compatibility_mode = compatibility_mode
         self.normalize = normalize
-        
+
         if build:
             self.data, self.targets = self._load_from_fs(root)
             return
-        
+
         self.data, self.targets = self._load_data()
 
     def _load_data(self):
@@ -98,10 +105,10 @@ class SeismicDataset(VisionDataset):
         targets = self._read_tensor(os.path.join(self.raw_folder, label_file))
 
         return data, targets
-    
+
     def _read_tensor(self, filepath):
         return torch.load(filepath)
-    
+
     def _load_from_fs(self, root: str = None) -> Tuple[torch.Tensor, torch.Tensor]:
         if not root:
             root = os.getcwd()
@@ -113,19 +120,22 @@ class SeismicDataset(VisionDataset):
             target = self.class_to_idx.get(c)
             for filename in glob.glob(f"{dirpath}/{c}/*png"):
                 im = Image.open(filename)
-                #resize to most common size
+                # resize to most common size
                 im = im.convert(self.colormode).resize((118, 143))
                 if self.normalize:
-                    im = cv2.normalize(np.array(im), None, 0.0, 1.0, cv2.NORM_MINMAX, cv2.CV_32FC1)
+                    im = cv2.normalize(
+                        np.array(im), None, 0.0, 1.0, cv2.NORM_MINMAX, cv2.CV_32FC1
+                    )
                 images.append(im)
             if len(images) == 0:
                 continue
             data.append(np.array(images, dtype=np.float32))
             targets.append(np.full(len(images), target))
-        
-        return torch.from_numpy(np.concatenate(data, axis=0)), torch.from_numpy(np.concatenate(targets, axis=0))
-                
-                
+
+        return torch.from_numpy(np.concatenate(data, axis=0)), torch.from_numpy(
+            np.concatenate(targets, axis=0)
+        )
+
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         """
         Args:
@@ -149,7 +159,6 @@ class SeismicDataset(VisionDataset):
 
         return img, target
 
-
     def __len__(self) -> int:
         return len(self.data)
 
@@ -165,15 +174,13 @@ class SeismicDataset(VisionDataset):
     def class_to_idx(self) -> Dict[str, int]:
         return {_class: i for i, _class in enumerate(self.classes)}
 
-
     def extra_repr(self) -> str:
         split = "Train" if self.train is True else "Test"
         return f"Split: {split}"
 
-    
     def save(self) -> None:
         image_file = f"{'train' if self.train else 'test'}-images.pt"
         torch.save(self.data, os.path.join(self.raw_folder, image_file))
-        
+
         label_file = f"{'train' if self.train else 'test'}-labels.pt"
         torch.save(self.targets, os.path.join(self.raw_folder, label_file))

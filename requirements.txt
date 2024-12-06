@@ -25,3 +25,4 @@ tqdm
 ujson==5.8.0
 Werkzeug==3.0.1
 matplotlib==3.8.0
+huggingface_hub==0.26.2
