@@ -13,48 +13,66 @@ class ContrastiveDataset(Dataset):
     """
     Train: For each sample creates randomly a positive or a negative pair
     Test: Creates fixed pairs for testing
-    
+
     :param dataset: MNIST-like  VisionDataset to get pair from
     """
 
     def __init__(self, dataset):
-        
+
         self.dataset = dataset
 
         self.train = self.dataset.train
         self.transform = self.dataset.transform
         self.colormode = self.dataset.colormode
         self.compatibility_mode = self.dataset.compatibility_mode
-        
+
         if self.train:
             self.train_labels = self.dataset.targets
             self.train_data = self.dataset.data
             self.labels_set = set(self.train_labels.numpy())
-            self.label_to_indices = {label: np.where(self.train_labels.numpy() == label)[0]
-                                     for label in self.labels_set}
+            self.label_to_indices = {
+                label: np.where(self.train_labels.numpy() == label)[0]
+                for label in self.labels_set
+            }
         else:
             # generate fixed pairs for testing
             self.test_labels = self.dataset.targets
             self.test_data = self.dataset.data
             self.labels_set = set(self.test_labels.numpy())
-            self.label_to_indices = {label: np.where(self.test_labels.numpy() == label)[0]
-                                     for label in self.labels_set}
-            
-            random_state = np.random.RandomState(29)
-                
-            positive_pairs = [[i,
-                               random_state.choice(self.label_to_indices[self.test_labels[i].item()]),
-                               1]
-                              for i in range(0, len(self.test_data), 2)]
+            self.label_to_indices = {
+                label: np.where(self.test_labels.numpy() == label)[0]
+                for label in self.labels_set
+            }
 
-            negative_pairs = [[i,
-                               random_state.choice(self.label_to_indices[
-                                                       np.random.choice(
-                                                           list(self.labels_set - set([self.test_labels[i].item()]))
-                                                       )
-                                                   ]),
-                               0]
-                              for i in range(1, len(self.test_data), 2)]
+            random_state = np.random.RandomState(29)
+
+            positive_pairs = [
+                [
+                    i,
+                    random_state.choice(
+                        self.label_to_indices[self.test_labels[i].item()]
+                    ),
+                    1,
+                ]
+                for i in range(0, len(self.test_data), 2)
+            ]
+
+            negative_pairs = [
+                [
+                    i,
+                    random_state.choice(
+                        self.label_to_indices[
+                            np.random.choice(
+                                list(
+                                    self.labels_set - set([self.test_labels[i].item()])
+                                )
+                            )
+                        ]
+                    ),
+                    0,
+                ]
+                for i in range(1, len(self.test_data), 2)
+            ]
             self.test_pairs = positive_pairs + negative_pairs
 
     def __getitem__(self, index):
@@ -73,16 +91,16 @@ class ContrastiveDataset(Dataset):
             img1 = self.test_data[self.test_pairs[index][0]]
             img2 = self.test_data[self.test_pairs[index][1]]
             target = self.test_pairs[index][2]
-        
+
         if self.compatibility_mode:
             img1 = Image.fromarray(img1.numpy(), mode=self.colormode)
             img2 = Image.fromarray(img2.numpy(), mode=self.colormode)
         if self.transform:
             img1 = self.transform(img1)
             img2 = self.transform(img2)
-                
-        img1 = img1.transpose(2,0).transpose(2,1)
-        img2 = img2.transpose(2,0).transpose(2,1)
+
+        img1 = img1.transpose(2, 0).transpose(2, 1)
+        img2 = img2.transpose(2, 0).transpose(2, 1)
         return (img1, img2), target
 
     def __len__(self):
@@ -100,34 +118,47 @@ class TripletDataset(Dataset):
         self.train = self.dataset.train
         self.transform = self.dataset.transform
         self.colormode = self.dataset.colormode
-        self.compatibility_mode = self.dataset.compatibility_mode 
-        
+        self.compatibility_mode = self.dataset.compatibility_mode
+
         if self.train:
             self.train_labels = self.dataset.targets
             self.train_data = self.dataset.data
             self.labels_set = set(self.train_labels.numpy())
-            self.label_to_indices = {label: np.where(self.train_labels.numpy() == label)[0]
-                                     for label in self.labels_set}
+            self.label_to_indices = {
+                label: np.where(self.train_labels.numpy() == label)[0]
+                for label in self.labels_set
+            }
 
         else:
             self.test_labels = self.dataset.targets
             self.test_data = self.dataset.data
             # generate fixed triplets for testing
             self.labels_set = set(self.test_labels.numpy())
-            self.label_to_indices = {label: np.where(self.test_labels.numpy() == label)[0]
-                                     for label in self.labels_set}
+            self.label_to_indices = {
+                label: np.where(self.test_labels.numpy() == label)[0]
+                for label in self.labels_set
+            }
 
             random_state = np.random.RandomState(29)
 
-            triplets = [[i,
-                         random_state.choice(self.label_to_indices[self.test_labels[i].item()]),
-                         random_state.choice(self.label_to_indices[
-                                                 np.random.choice(
-                                                     list(self.labels_set - set([self.test_labels[i].item()]))
-                                                 )
-                                             ])
-                         ]
-                        for i in range(len(self.test_data))]
+            triplets = [
+                [
+                    i,
+                    random_state.choice(
+                        self.label_to_indices[self.test_labels[i].item()]
+                    ),
+                    random_state.choice(
+                        self.label_to_indices[
+                            np.random.choice(
+                                list(
+                                    self.labels_set - set([self.test_labels[i].item()])
+                                )
+                            )
+                        ]
+                    ),
+                ]
+                for i in range(len(self.test_data))
+            ]
             self.test_triplets = triplets
 
     def __getitem__(self, index):
@@ -144,7 +175,7 @@ class TripletDataset(Dataset):
             img1 = self.test_data[self.test_triplets[index][0]]
             img2 = self.test_data[self.test_triplets[index][1]]
             img3 = self.test_data[self.test_triplets[index][2]]
-        
+
         if self.compatibility_mode:
             img1 = Image.fromarray(img1.numpy(), mode=self.colormode)
             img2 = Image.fromarray(img2.numpy(), mode=self.colormode)
@@ -153,13 +184,12 @@ class TripletDataset(Dataset):
             img1 = self.transform(img1)
             img2 = self.transform(img2)
             img3 = self.transform(img3)
-            
-        img1 = img1.transpose(2,0).transpose(2,1)
-        img2 = img2.transpose(2,0).transpose(2,1)
-        img3 = img3.transpose(2,0).transpose(2,1)
-        
+
+        img1 = img1.transpose(2, 0).transpose(2, 1)
+        img2 = img2.transpose(2, 0).transpose(2, 1)
+        img3 = img3.transpose(2, 0).transpose(2, 1)
+
         return (img1, img2, img3), []
 
     def __len__(self):
         return len(self.dataset)
-
